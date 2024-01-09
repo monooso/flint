@@ -14,7 +14,6 @@ defmodule Flint.Flights do
 
     {:ok,
      flights
-     |> Map.get("departures")
      |> Enum.map(&parse_flight/1)
      |> then(&collate_flights/1)
      |> then(&sort_flights/1)}
