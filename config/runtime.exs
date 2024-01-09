@@ -1,4 +1,11 @@
 import Config
+import Dotenvy
+
+# Load environment variables from .env
+source!([".env", System.get_env()])
+
+config :flint,
+  flights_api_key: env!("AERODATABOX_API_KEY", :string)
 
 # config/runtime.exs is executed for all environments, including
 # during releases. It is executed after compilation and before the
