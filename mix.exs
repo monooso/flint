@@ -52,7 +52,8 @@ defmodule Flint.MixProject do
       {:dns_cluster, "~> 0.1.1"},
       {:plug_cowboy, "~> 2.5"},
       {:dotenvy, "~> 0.8.0"},
-      {:mox, "~> 1.1", only: :test}
+      {:mox, "~> 1.1", only: :test},
+      {:req, "~> 0.4.8"}
     ]
   end
 
