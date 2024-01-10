@@ -5,6 +5,49 @@ defmodule Flint.FlightsTest do
 
   setup :verify_on_exit!
 
+  describe "filter_common_destinations/2" do
+    setup do
+      destinations_a = [
+        %Destination{airport: %{iata_code: "AAA", name: "A"}},
+        %Destination{airport: %{iata_code: "BBB", name: "B"}},
+        %Destination{airport: %{iata_code: "CCC", name: "C"}}
+      ]
+
+      destinations_b = [
+        %Destination{airport: %{iata_code: "BBB", name: "B"}},
+        %Destination{airport: %{iata_code: "CCC", name: "C"}},
+        %Destination{airport: %{iata_code: "DDD", name: "D"}}
+      ]
+
+      %{destinations_a: destinations_a, destinations_b: destinations_b}
+    end
+
+    test "it returns a tuple containing two lists of destinations", %{
+      destinations_a: destinations_a,
+      destinations_b: destinations_b
+    } do
+      assert {[%Destination{}, %Destination{}], [%Destination{}, %Destination{}]} =
+               Flint.Flights.filter_common_destinations(destinations_a, destinations_b)
+    end
+
+    test "it removes destinations that are not present in both lists", %{
+      destinations_a: destinations_a,
+      destinations_b: destinations_b
+    } do
+      extract_iata_codes = fn destinations ->
+        destinations
+        |> Enum.map(fn %{airport: %{iata_code: iata_code}} -> iata_code end)
+        |> Enum.sort()
+      end
+
+      {result_a, result_b} =
+        Flint.Flights.filter_common_destinations(destinations_a, destinations_b)
+
+      assert {["BBB", "CCC"], ["BBB", "CCC"]} =
+               {extract_iata_codes.(result_a), extract_iata_codes.(result_b)}
+    end
+  end
+
   describe "list_scheduled_flights/2" do
     test "it returns an {:ok, list()} tuple on success" do
       expect(FlightsApiMock, :list_scheduled_flights, fn _airport_code, _departure_date ->
