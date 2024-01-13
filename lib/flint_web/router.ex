@@ -14,10 +14,9 @@ defmodule FlintWeb.Router do
     plug :accepts, ["json"]
   end
 
-  scope "/", FlintWeb do
+  scope "/", FlintWeb.Live do
     pipe_through :browser
-
-    get "/", PageController, :home
+    live "/", Search
   end
 
   # Other scopes may use custom stacks.
