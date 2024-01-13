@@ -9,6 +9,19 @@
   </button>
 </.form>
 
+<button class="block my-4 bg-green-600 text-green-100 rounded-md px-4 py-2" phx-click="update_map">
+  Update Map
+</button>
+
+<section
+  class="bg-amber-200 my-4 p-2"
+  id="map-wrapper"
+  phx-update="ignore"
+  phx-hook="DestinationsHandler"
+>
+  <div id="map"></div>
+</section>
+
 <div :if={Enum.any?(@results)}>
   <.table id="results" rows={@results.rows}>
     <:col :let={result} label={Enum.at(@results.labels, 0)}>
@@ -26,3 +39,16 @@
     </:col>
   </.table>
 </div>
+
+<script>
+  const map = L.map('map').setView([51.505, -0.09], 13);
+
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  }).addTo(map);
+</script>
+
+<style>
+  #map { height: 500px; }
+</style>

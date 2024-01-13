@@ -10,6 +10,11 @@ defmodule FlintWeb.Live.Search do
     {:ok, socket |> assign_form(changeset) |> assign_results()}
   end
 
+  def handle_event("update_map", _params, socket) do
+    destinations = [%{lat: 51.5, lng: -0.09}, %{lat: 51.9, lng: -0.29}]
+    {:noreply, push_event(socket, "destinations", %{destinations: destinations})}
+  end
+
   def handle_event("search", %{"search_form" => params}, socket) do
     result =
       %SearchForm{}
