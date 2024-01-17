@@ -1,10 +1,13 @@
 defmodule Flint.FlightsTest do
-  use ExUnit.Case, async: true
   alias Flint.Flights.Destination
+  alias Flint.Flights.Airline
+  use Flint.DataCase, async: true
   alias Flint.Flights.Flight
   import Mox
 
   setup :verify_on_exit!
+
+  defp sort_by_icao_code(items), do: Enum.sort_by(items, & &1.icao_code)
 
   describe "filter_common_destinations/2" do
     defp generate_flight(origin_code, destination_code) do
@@ -57,6 +60,15 @@ defmodule Flint.FlightsTest do
 
       assert {["BRAD", "MARY"], ["BRAD", "MARY"]} =
                {extract_destination_codes.(result_a), extract_destination_codes.(result_b)}
+    end
+  end
+
+  describe "list_airlines_by_icao_codes/1" do
+    test "it returns a list of airlines matching the given ICAO codes" do
+      assert [
+               %Airline{icao_code: "KLM"},
+               %Airline{icao_code: "VLG"}
+             ] = Flint.Flights.list_airlines_by_icao_codes(["KLM", "VLG"]) |> sort_by_icao_code()
     end
   end
 
