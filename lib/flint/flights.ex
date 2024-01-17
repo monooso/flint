@@ -3,7 +3,6 @@ defmodule Flint.Flights do
   alias Flint.Flights.Route
   alias Flint.Flights.Airline
   alias Flint.Flights.Airport
-  alias Flint.Flights.Destination
   alias Flint.Flights.Flight
   alias Flint.Repo
 
@@ -11,7 +10,6 @@ defmodule Flint.Flights do
   Functions for retrieving information about flights.
   """
 
-  @type destinations_list() :: list(Destination.t())
   @type flights_list() :: list(Flight.t())
 
   @doc """
