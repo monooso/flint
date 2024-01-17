@@ -1,50 +1,62 @@
 defmodule Flint.FlightsTest do
   use ExUnit.Case, async: true
   alias Flint.Flights.Destination
+  alias Flint.Flights.Flight
   import Mox
 
   setup :verify_on_exit!
 
   describe "filter_common_destinations/2" do
+    defp generate_flight(origin_code, destination_code) do
+      %Flight{
+        airline: %Flint.Flights.Airline{iata_code: "AAA", name: "Triple-A Airlines"},
+        departs_at: DateTime.utc_now() |> DateTime.add(36000, :minute),
+        flight_number: "AAA 123",
+        route: %Flint.Flights.Route{
+          destination: %Flint.Flights.Airport{icao_code: destination_code},
+          origin: %Flint.Flights.Airport{icao_code: origin_code}
+        }
+      }
+    end
+
     setup do
-      destinations_a = [
-        %Destination{airport: %{iata_code: "AAA", name: "A"}},
-        %Destination{airport: %{iata_code: "BBB", name: "B"}},
-        %Destination{airport: %{iata_code: "CCC", name: "C"}}
+      flights_a = [
+        generate_flight("HOME", "DAVE"),
+        generate_flight("HOME", "BRAD"),
+        generate_flight("HOME", "MARY")
       ]
 
-      destinations_b = [
-        %Destination{airport: %{iata_code: "BBB", name: "B"}},
-        %Destination{airport: %{iata_code: "CCC", name: "C"}},
-        %Destination{airport: %{iata_code: "DDD", name: "D"}}
+      flights_b = [
+        generate_flight("AWAY", "BRAD"),
+        generate_flight("AWAY", "MARY"),
+        generate_flight("AWAY", "JANE")
       ]
 
-      %{destinations_a: destinations_a, destinations_b: destinations_b}
+      %{flights_a: flights_a, flights_b: flights_b}
     end
 
-    test "it returns a tuple containing two lists of destinations", %{
-      destinations_a: destinations_a,
-      destinations_b: destinations_b
+    test "it returns a tuple containing two lists of flights", %{
+      flights_a: alpha,
+      flights_b: bravo
     } do
-      assert {[%Destination{}, %Destination{}], [%Destination{}, %Destination{}]} =
-               Flint.Flights.filter_common_destinations(destinations_a, destinations_b)
+      assert {[%Flight{}, %Flight{}], [%Flight{}, %Flight{}]} =
+               Flint.Flights.filter_by_common_destination(alpha, bravo)
     end
 
-    test "it removes destinations that are not present in both lists", %{
-      destinations_a: destinations_a,
-      destinations_b: destinations_b
+    test "it removes flights with a destination that is not present in both lists", %{
+      flights_a: alpha,
+      flights_b: bravo
     } do
-      extract_iata_codes = fn destinations ->
-        destinations
-        |> Enum.map(fn %{airport: %{iata_code: iata_code}} -> iata_code end)
+      extract_destination_codes = fn flights ->
+        flights
+        |> Enum.map(fn %{route: %{destination: %{icao_code: code}}} -> code end)
         |> Enum.sort()
       end
 
-      {result_a, result_b} =
-        Flint.Flights.filter_common_destinations(destinations_a, destinations_b)
+      {result_a, result_b} = Flint.Flights.filter_by_common_destination(alpha, bravo)
 
-      assert {["BBB", "CCC"], ["BBB", "CCC"]} =
-               {extract_iata_codes.(result_a), extract_iata_codes.(result_b)}
+      assert {["BRAD", "MARY"], ["BRAD", "MARY"]} =
+               {extract_destination_codes.(result_a), extract_destination_codes.(result_b)}
     end
   end
 

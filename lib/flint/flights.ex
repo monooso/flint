@@ -1,27 +1,29 @@
 defmodule Flint.Flights do
   alias Flint.Flights.Destination
+  alias Flint.Flights.Flight
 
   @moduledoc """
   Functions for retrieving information about flights.
   """
 
   @type destinations_list() :: list(Destination.t())
+  @type flights_list() :: list(Flight.t())
 
   @doc """
-  Removes destinations that are not present in both given lists.
+  Removes flights with a destination that is not present in both lists.
   """
-  @spec filter_common_destinations(destinations_list(), destinations_list()) ::
-          {destinations_list(), destinations_list()}
-  def filter_common_destinations(destinations_a, destinations_b) do
-    iata_codes =
-      filter_common_iata_codes(
-        extract_iata_codes_from_destinations(destinations_a),
-        extract_iata_codes_from_destinations(destinations_b)
+  @spec filter_by_common_destination(flights_list(), flights_list()) ::
+          {flights_list(), flights_list()}
+  def filter_by_common_destination(alpha, bravo) do
+    icao_codes =
+      filter_common_icao_codes(
+        extract_destination_icao_codes_from_flights(alpha),
+        extract_destination_icao_codes_from_flights(bravo)
       )
 
     {
-      filter_destinations_by_iata_codes(destinations_a, iata_codes),
-      filter_destinations_by_iata_codes(destinations_b, iata_codes)
+      filter_flights_by_destination_icao_codes(alpha, icao_codes),
+      filter_flights_by_destination_icao_codes(bravo, icao_codes)
     }
   end
 
@@ -55,18 +57,18 @@ defmodule Flint.Flights do
     end)
   end
 
-  @spec extract_iata_codes_from_destinations(destinations_list()) :: list(String.t())
-  defp extract_iata_codes_from_destinations(destinations),
-    do: Enum.map(destinations, fn %{airport: %{iata_code: iata_code}} -> iata_code end)
+  @spec extract_destination_icao_codes_from_flights(flights_list()) :: list(String.t())
+  defp extract_destination_icao_codes_from_flights(flights),
+    do: Enum.map(flights, fn %{route: %{destination: %{icao_code: icao_code}}} -> icao_code end)
 
-  @spec filter_common_iata_codes(list(String.t()), list(String.t())) :: list(String.t())
-  defp filter_common_iata_codes(first_list, second_list),
-    do: MapSet.intersection(MapSet.new(first_list), MapSet.new(second_list)) |> MapSet.to_list()
+  @spec filter_common_icao_codes(list(String.t()), list(String.t())) :: list(String.t())
+  defp filter_common_icao_codes(alpha, bravo),
+    do: MapSet.intersection(MapSet.new(alpha), MapSet.new(bravo)) |> MapSet.to_list()
 
-  @spec filter_destinations_by_iata_codes(destinations_list(), list(String.t())) ::
-          destinations_list()
-  defp filter_destinations_by_iata_codes(destinations, iata_codes),
-    do: Enum.filter(destinations, &(&1.airport.iata_code in iata_codes))
+  @spec filter_flights_by_destination_icao_codes(flights_list(), list(String.t())) ::
+          flights_list()
+  defp filter_flights_by_destination_icao_codes(flights, icao_codes),
+    do: Enum.filter(flights, &(&1.route.destination.icao_code in icao_codes))
 
   defp parse_flight(%{"movement" => flight}) do
     %{

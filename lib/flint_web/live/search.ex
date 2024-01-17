@@ -61,7 +61,7 @@ defmodule FlintWeb.Live.Search do
   @spec find_common_destinations({destination_list(), destination_list()}) ::
           {destination_list(), destination_list()}
   defp find_common_destinations({first_flights, second_flights}),
-    do: Flights.filter_common_destinations(first_flights, second_flights)
+    do: Flights.filter_by_common_destination(first_flights, second_flights)
 
   @spec prepare_results({destination_list(), destination_list()}, SearchForm.t()) :: map()
   defp prepare_results({first_destinations, second_destinations}, search_form) do
