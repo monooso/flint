@@ -1,6 +1,7 @@
 defmodule Flint.Flights do
   import Ecto.Query, only: [from: 2]
   alias Flint.Flights.Airline
+  alias Flint.Flights.Airport
   alias Flint.Flights.Destination
   alias Flint.Flights.Flight
   alias Flint.Repo
@@ -36,6 +37,13 @@ defmodule Flint.Flights do
   @spec list_airlines_by_icao_codes(list(String.t())) :: list(Airline.t())
   def list_airlines_by_icao_codes(codes),
     do: from(a in Airline, where: a.icao_code in ^codes) |> Repo.all()
+
+  @doc """
+  Returns a list of airports matching the given ICAO codes.
+  """
+  @spec list_airports_by_icao_codes(list(String.t())) :: list(Airport.t())
+  def list_airports_by_icao_codes(codes),
+    do: from(a in Airport, where: a.icao_code in ^codes) |> Repo.all()
 
   @doc """
   Returns a list of scheduled flights for the given airport and date.

@@ -1,5 +1,6 @@
 defmodule Flint.FlightsTest do
   alias Flint.Flights.Destination
+  alias Flint.Flights.Airport
   alias Flint.Flights.Airline
   use Flint.DataCase, async: true
   alias Flint.Flights.Flight
@@ -69,6 +70,16 @@ defmodule Flint.FlightsTest do
                %Airline{icao_code: "KLM"},
                %Airline{icao_code: "VLG"}
              ] = Flint.Flights.list_airlines_by_icao_codes(["KLM", "VLG"]) |> sort_by_icao_code()
+    end
+  end
+
+  describe "list_airports_by_icao_codes/1" do
+    test "it returns a list of airports matching the given ICAO codes" do
+      assert [
+               %Airport{icao_code: "EGFF"},
+               %Airport{icao_code: "EHAM"}
+             ] =
+               Flint.Flights.list_airports_by_icao_codes(["EGFF", "EHAM"]) |> sort_by_icao_code()
     end
   end
 
