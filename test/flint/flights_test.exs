@@ -1,5 +1,4 @@
 defmodule Flint.FlightsTest do
-  alias Flint.Flights.Destination
   alias Flint.Flights.Airport
   alias Flint.Flights.Airline
   use Flint.DataCase, async: true
@@ -89,11 +88,11 @@ defmodule Flint.FlightsTest do
         {:ok, []}
       end)
 
-      assert {:ok, []} = Flint.Flights.list_scheduled_flights("CWL", ~D[2024-10-12])
+      assert {:ok, []} = Flint.Flights.list_scheduled_flights("EGFF", ~D[2024-10-12])
     end
 
-    test "it extracts the airport and departures information for each flight" do
-      expect(FlightsApiMock, :list_scheduled_flights, fn _airport_code, _departure_date ->
+    test "it extracts the relevant flight information" do
+      expect(FlightsApiMock, :list_scheduled_flights, fn "EGFF", ~D[2024-10-12] ->
         {:ok,
          [
            %{
@@ -129,22 +128,6 @@ defmodule Flint.FlightsTest do
              "status" => "Unknown"
            },
            %{
-             "aircraft" => %{"model" => "ATR 72"},
-             "airline" => %{"iata" => "EI", "icao" => "EIN", "name" => "Aer Lingus"},
-             "codeshareStatus" => "Unknown",
-             "isCargo" => false,
-             "movement" => %{
-               "airport" => %{"iata" => "BHD", "icao" => "EGAC", "name" => "Belfast"},
-               "quality" => ["Basic"],
-               "scheduledTime" => %{
-                 "local" => "2024-02-17 12:10+00:00",
-                 "utc" => "2024-02-17 12:10Z"
-               }
-             },
-             "number" => "EI 3621",
-             "status" => "Unknown"
-           },
-           %{
              "aircraft" => %{"model" => "Embraer 175"},
              "airline" => %{"iata" => "KL", "icao" => "KLM", "name" => "KLM"},
              "codeshareStatus" => "Unknown",
@@ -159,66 +142,51 @@ defmodule Flint.FlightsTest do
              },
              "number" => "KL 1060",
              "status" => "Unknown"
-           },
-           %{
-             "aircraft" => %{"model" => "Airbus A320"},
-             "airline" => %{"iata" => "VY", "icao" => "VLG", "name" => "Vueling"},
-             "codeshareStatus" => "Unknown",
-             "isCargo" => false,
-             "movement" => %{
-               "airport" => %{"iata" => "AGP", "icao" => "LEMG", "name" => "Málaga"},
-               "quality" => ["Basic"],
-               "scheduledTime" => %{
-                 "local" => "2024-02-17 15:10+00:00",
-                 "utc" => "2024-02-17 15:10Z"
-               }
-             },
-             "number" => "VY 1261",
-             "status" => "Unknown"
-           },
-           %{
-             "aircraft" => %{"model" => "ATR 72"},
-             "airline" => %{"iata" => "T3", "icao" => "EZE", "name" => "Eastern Airways"},
-             "codeshareStatus" => "Unknown",
-             "isCargo" => false,
-             "movement" => %{
-               "airport" => %{"iata" => "ORY", "icao" => "LFPO", "name" => "Paris"},
-               "quality" => ["Basic"],
-               "scheduledTime" => %{
-                 "local" => "2024-02-17 15:40+00:00",
-                 "utc" => "2024-02-17 15:40Z"
-               }
-             },
-             "number" => "T3 247",
-             "status" => "Unknown"
            }
          ]}
       end)
 
-      expected_result = [
-        %Destination{
-          airport: %{iata_code: "ALC", name: "Alicante"},
-          departures: [~U[2024-02-17 17:00:00Z]]
+      airlines =
+        ["KLM", "VLG"]
+        |> Flint.Flights.list_airlines_by_icao_codes()
+        |> Enum.reduce(%{}, &Map.put(&2, &1.icao_code, &1))
+
+      airports =
+        ["LEAL", "EHAM", "EGFF"]
+        |> Flint.Flights.list_airports_by_icao_codes()
+        |> Enum.reduce(%{}, &Map.put(&2, &1.icao_code, &1))
+
+      expected = [
+        %Flight{
+          airline: Map.get(airlines, "VLG"),
+          departs_at: ~U[2024-02-17 17:00:00Z],
+          flight_number: "VY 1240",
+          route: %Flint.Flights.Route{
+            destination: Map.get(airports, "LEAL"),
+            origin: Map.get(airports, "EGFF")
+          }
         },
-        %Destination{
-          airport: %{iata_code: "AMS", name: "Amsterdam"},
-          departures: [~U[2024-02-17 10:15:00Z], ~U[2024-02-17 17:25:00Z]]
+        %Flight{
+          airline: Map.get(airlines, "KLM"),
+          departs_at: ~U[2024-02-17 17:25:00Z],
+          flight_number: "KL 1066",
+          route: %Flint.Flights.Route{
+            destination: Map.get(airports, "EHAM"),
+            origin: Map.get(airports, "EGFF")
+          }
         },
-        %Destination{
-          airport: %{iata_code: "BHD", name: "Belfast"},
-          departures: [~U[2024-02-17 12:10:00Z]]
-        },
-        %Destination{
-          airport: %{iata_code: "AGP", name: "Málaga"},
-          departures: [~U[2024-02-17 15:10:00Z]]
-        },
-        %Destination{
-          airport: %{iata_code: "ORY", name: "Paris"},
-          departures: [~U[2024-02-17 15:40:00Z]]
+        %Flight{
+          airline: Map.get(airlines, "KLM"),
+          departs_at: ~U[2024-02-17 10:15:00Z],
+          flight_number: "KL 1060",
+          route: %Flint.Flights.Route{
+            destination: Map.get(airports, "EHAM"),
+            origin: Map.get(airports, "EGFF")
+          }
         }
       ]
 
-      assert {:ok, ^expected_result} = Flint.Flights.list_scheduled_flights("CWL", ~D[2024-10-12])
+      assert {:ok, ^expected} = Flint.Flights.list_scheduled_flights("EGFF", ~D[2024-10-12])
     end
   end
 end

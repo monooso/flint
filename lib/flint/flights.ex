@@ -1,5 +1,6 @@
 defmodule Flint.Flights do
   import Ecto.Query, only: [from: 2]
+  alias Flint.Flights.Route
   alias Flint.Flights.Airline
   alias Flint.Flights.Airport
   alias Flint.Flights.Destination
@@ -48,32 +49,54 @@ defmodule Flint.Flights do
   @doc """
   Returns a list of scheduled flights for the given airport and date.
   """
-  @spec list_scheduled_flights(String.t(), Date.t()) :: {:ok, destinations_list()}
-  def list_scheduled_flights(airport_code, departure_date) do
-    {:ok, flights} = api_impl().list_scheduled_flights(airport_code, departure_date)
+  @spec list_scheduled_flights(String.t(), Date.t()) :: {:ok, flights_list()}
+  def list_scheduled_flights(origin_icao_code, departure_date) do
+    {:ok, scheduled_flights} = api_impl().list_scheduled_flights(origin_icao_code, departure_date)
 
-    {:ok,
-     flights
-     |> Enum.map(&parse_flight/1)
-     |> then(&collate_flights/1)
-     |> then(&sort_flights/1)}
+    airlines =
+      scheduled_flights
+      |> Enum.map(&get_in(&1, ["airline", "icao"]))
+      |> list_airlines_by_icao_codes()
+      |> index_list_by_icao_code()
+
+    airports =
+      scheduled_flights
+      |> Enum.map(&get_in(&1, ["movement", "airport", "icao"]))
+      |> Enum.concat([origin_icao_code])
+      |> list_airports_by_icao_codes()
+      |> index_list_by_icao_code()
+
+    parsed_flights =
+      scheduled_flights
+      |> Enum.map(fn scheduled_flight ->
+        %Flight{
+          airline: Map.get(airlines, get_in(scheduled_flight, ["airline", "icao"])),
+          departs_at:
+            scheduled_flight
+            |> get_in(["movement", "scheduledTime", "utc"])
+            |> convert_scheduled_time_string_to_datetime(),
+          flight_number: Map.get(scheduled_flight, "number"),
+          route: %Route{
+            destination:
+              Map.get(airports, get_in(scheduled_flight, ["movement", "airport", "icao"])),
+            origin: Map.get(airports, origin_icao_code)
+          }
+        }
+      end)
+
+    {:ok, parsed_flights}
   end
 
-  defp api_impl() do
-    Application.get_env(:flint, :flights, Flint.Flights.ApiImpl)
+  defp convert_scheduled_time_string_to_datetime(scheduled_time) do
+    {:ok, datetime, _offset} =
+      scheduled_time
+      |> String.replace_suffix("Z", ":00Z")
+      |> DateTime.from_iso8601()
+
+    datetime
   end
 
-  defp collate_flights(flights) do
-    flights
-    |> Enum.group_by(&get_in(&1, [:airport, :iata_code]))
-    |> Map.values()
-    |> Enum.map(fn flights_to_destination ->
-      departures = flights_to_destination |> Enum.map(&Map.fetch!(&1, :departs_at)) |> Enum.sort()
-      airport = flights_to_destination |> Enum.at(0) |> Map.get(:airport)
-
-      %Destination{airport: airport, departures: departures}
-    end)
-  end
+  defp api_impl(), do: Application.get_env(:flint, :flights, Flint.Flights.ApiImpl)
 
   @spec extract_destination_icao_codes_from_flights(flights_list()) :: list(String.t())
   defp extract_destination_icao_codes_from_flights(flights),
@@ -88,20 +111,7 @@ defmodule Flint.Flights do
   defp filter_flights_by_destination_icao_codes(flights, icao_codes),
     do: Enum.filter(flights, &(&1.route.destination.icao_code in icao_codes))
 
-  defp parse_flight(%{"movement" => flight}) do
-    %{
-      airport: %{
-        iata_code: get_in(flight, ["airport", "iata"]),
-        name: get_in(flight, ["airport", "name"])
-      },
-      departs_at:
-        get_in(flight, ["scheduledTime", "utc"])
-        |> String.replace_suffix("Z", ":00Z")
-        |> DateTime.from_iso8601()
-        |> elem(1)
-    }
-  end
-
-  defp sort_flights(flights),
-    do: Enum.sort_by(flights, & &1.airport.name)
+  @spec index_list_by_icao_code(list()) :: map()
+  defp index_list_by_icao_code(list),
+    do: Enum.reduce(list, %{}, fn item, acc -> Map.put(acc, item.icao_code, item) end)
 end
