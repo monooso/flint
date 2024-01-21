@@ -1,17 +1,13 @@
 <h1>Search</h1>
 
 <.form for={@form} phx-submit="search" class="space-y-2">
-  <.input field={@form[:first_origin_code]} placeholder="CWL" />
-  <.input field={@form[:second_origin_code]} placeholder="BRS" />
+  <.input field={@form[:first_origin_code]} placeholder="EGLL" />
+  <.input field={@form[:second_origin_code]} placeholder="LFPO" />
   <.input field={@form[:departure_date]} type="date" />
   <button class="bg-blue-600 text-blue-100 rounded-md px-4 py-2" type="submit">
     Do the thing!
   </button>
 </.form>
-
-<button class="block my-4 bg-green-600 text-green-100 rounded-md px-4 py-2" phx-click="update_map">
-  Update Map
-</button>
 
 <section
   class="bg-amber-200 my-4 p-2"
@@ -21,24 +17,6 @@
 >
   <div id="map"></div>
 </section>
-
-<div :if={Enum.any?(@results)}>
-  <.table id="results" rows={@results.rows}>
-    <:col :let={result} label={Enum.at(@results.labels, 0)}>
-      <%= result.destination.name %> (<%= result.destination.iata_code %>)
-    </:col>
-    <:col :let={result} label={Enum.at(@results.labels, 1)}>
-      <ol :for={departure <- result.first_origin_departures}>
-        <li><%= departure |> DateTime.to_time() |> Time.to_iso8601() %></li>
-      </ol>
-    </:col>
-    <:col :let={result} label={Enum.at(@results.labels, 2)}>
-      <ol :for={departure <- result.second_origin_departures}>
-        <li><%= departure |> DateTime.to_time() |> Time.to_iso8601() %></li>
-      </ol>
-    </:col>
-  </.table>
-</div>
 
 <script>
   const map = L.map('map').setView([51.505, -0.09], 13);

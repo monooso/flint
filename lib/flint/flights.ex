@@ -49,35 +49,35 @@ defmodule Flint.Flights do
   """
   @spec list_scheduled_flights(String.t(), Date.t()) :: {:ok, flights_list()}
   def list_scheduled_flights(origin_icao_code, departure_date) do
-    {:ok, scheduled_flights} = api_impl().list_scheduled_flights(origin_icao_code, departure_date)
+    {:ok, api_flights} = api_impl().list_scheduled_flights(origin_icao_code, departure_date)
 
     airlines =
-      scheduled_flights
-      |> Enum.map(&get_in(&1, ["airline", "icao"]))
+      api_flights
+      |> Enum.map(& &1.airline_icao_code)
+      |> Enum.sort()
+      |> Enum.dedup()
       |> list_airlines_by_icao_codes()
       |> index_list_by_icao_code()
 
     airports =
-      scheduled_flights
-      |> Enum.map(&get_in(&1, ["movement", "airport", "icao"]))
+      api_flights
+      |> Enum.map(& &1.destination_icao_code)
       |> Enum.concat([origin_icao_code])
+      |> Enum.sort()
+      |> Enum.dedup()
       |> list_airports_by_icao_codes()
       |> index_list_by_icao_code()
 
     parsed_flights =
-      scheduled_flights
-      |> Enum.map(fn scheduled_flight ->
+      api_flights
+      |> Enum.map(fn api_flight ->
         %Flight{
-          airline: Map.get(airlines, get_in(scheduled_flight, ["airline", "icao"])),
-          departs_at:
-            scheduled_flight
-            |> get_in(["movement", "scheduledTime", "utc"])
-            |> convert_scheduled_time_string_to_datetime(),
-          flight_number: Map.get(scheduled_flight, "number"),
+          airline: Map.get(airlines, api_flight.airline_icao_code),
+          departs_at: api_flight.departs_at,
+          flight_number: api_flight.flight_number,
           route: %Route{
-            destination:
-              Map.get(airports, get_in(scheduled_flight, ["movement", "airport", "icao"])),
-            origin: Map.get(airports, origin_icao_code)
+            destination: Map.get(airports, api_flight.destination_icao_code),
+            origin: Map.get(airports, api_flight.origin_icao_code)
           }
         }
       end)
@@ -85,16 +85,7 @@ defmodule Flint.Flights do
     {:ok, parsed_flights}
   end
 
-  defp convert_scheduled_time_string_to_datetime(scheduled_time) do
-    {:ok, datetime, _offset} =
-      scheduled_time
-      |> String.replace_suffix("Z", ":00Z")
-      |> DateTime.from_iso8601()
-
-    datetime
-  end
-
-  defp api_impl(), do: Application.get_env(:flint, :flights, Flint.Flights.ApiImpl)
+  defp api_impl(), do: Application.get_env(:flint, :flights, Flint.Providers.AdbFlightsApi)
 
   @spec extract_destination_icao_codes_from_flights(flights_list()) :: list(String.t())
   defp extract_destination_icao_codes_from_flights(flights),

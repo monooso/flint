@@ -3,16 +3,17 @@ defmodule FlintWeb.Live.Search do
   alias Flint.Flights
   alias Flint.Flights.SearchForm
 
-  @type destination_list() :: list(Flint.Flights.Destination.t())
+  @type flights_list() :: list(Flint.Flights.Flight.t())
 
   def mount(_params, _session, socket) do
-    changeset = SearchForm.changeset(%SearchForm{})
-    {:ok, socket |> assign_form(changeset) |> assign_results()}
-  end
+    changeset =
+      SearchForm.changeset(%SearchForm{
+        first_origin_code: "EGLL",
+        second_origin_code: "LFPO",
+        departure_date: ~D[2024-02-22]
+      })
 
-  def handle_event("update_map", _params, socket) do
-    destinations = [%{lat: 51.5, lng: -0.09}, %{lat: 51.9, lng: -0.29}]
-    {:noreply, push_event(socket, "destinations", %{destinations: destinations})}
+    {:ok, socket |> assign_form(changeset)}
   end
 
   def handle_event("search", %{"search_form" => params}, socket) do
@@ -21,17 +22,19 @@ defmodule FlintWeb.Live.Search do
       |> SearchForm.changeset(params)
       |> Ecto.Changeset.apply_action(:validate)
 
-    {:noreply, socket}
-
     case result do
       {:ok, search_form} ->
-        results =
+        {destinations_a, _destinations_b} =
           search_form
           |> find_flights()
           |> find_common_destinations()
-          |> prepare_results(search_form)
 
-        {:noreply, assign_results(socket, results)}
+        destinations =
+          Enum.map(destinations_a, fn flight ->
+            %{lat: flight.route.destination.latitude, lng: flight.route.destination.longitude}
+          end)
+
+        {:noreply, push_event(socket, "destinations", %{destinations: destinations})}
 
       {:error, changeset} ->
         {:noreply, socket |> assign_form(changeset)}
@@ -42,42 +45,20 @@ defmodule FlintWeb.Live.Search do
     assign(socket, :form, to_form(changeset))
   end
 
-  defp assign_results(socket, results \\ []) do
-    assign(socket, :results, results)
-  end
-
-  @spec find_flights(SearchForm.t()) :: {destination_list(), destination_list()}
+  @spec find_flights(SearchForm.t()) :: {flights_list(), flights_list()}
   defp find_flights(%SearchForm{
          departure_date: date,
-         first_origin_code: first_origin,
-         second_origin_code: second_origin
+         first_origin_code: origin_a,
+         second_origin_code: origin_b
        }) do
-    {:ok, first_flights} = Flights.list_scheduled_flights(first_origin, date)
-    {:ok, second_flights} = Flights.list_scheduled_flights(second_origin, date)
+    {:ok, flights_a} = Flights.list_scheduled_flights(origin_a, date)
+    {:ok, flights_b} = Flights.list_scheduled_flights(origin_b, date)
 
-    {first_flights, second_flights}
+    {flights_a, flights_b}
   end
 
-  @spec find_common_destinations({destination_list(), destination_list()}) ::
-          {destination_list(), destination_list()}
-  defp find_common_destinations({first_flights, second_flights}),
-    do: Flights.filter_by_common_destination(first_flights, second_flights)
-
-  @spec prepare_results({destination_list(), destination_list()}, SearchForm.t()) :: map()
-  defp prepare_results({first_destinations, second_destinations}, search_form) do
-    rows = Enum.zip(first_destinations, second_destinations) |> Enum.map(&prepare_result_row/1)
-    labels = ["Destination", search_form.first_origin_code, search_form.second_origin_code]
-
-    %{labels: labels, rows: rows}
-  end
-
-  defp prepare_result_row(
-         {%{airport: destination, departures: first_departures}, %{departures: second_departures}}
-       ) do
-    %{
-      destination: destination,
-      first_origin_departures: first_departures,
-      second_origin_departures: second_departures
-    }
-  end
+  @spec find_common_destinations({flights_list(), flights_list()}) ::
+          {flights_list(), flights_list()}
+  defp find_common_destinations({flights_a, flights_b}),
+    do: Flights.filter_by_common_destination(flights_a, flights_b)
 end

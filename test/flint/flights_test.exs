@@ -1,9 +1,11 @@
 defmodule Flint.FlightsTest do
+  use Flint.DataCase, async: true
+  import Mox
+
   alias Flint.Flights.Airport
   alias Flint.Flights.Airline
-  use Flint.DataCase, async: true
   alias Flint.Flights.Flight
-  import Mox
+  alias Flint.Providers.ApiFlight
 
   setup :verify_on_exit!
 
@@ -84,7 +86,7 @@ defmodule Flint.FlightsTest do
 
   describe "list_scheduled_flights/2" do
     test "it returns an {:ok, list()} tuple on success" do
-      expect(FlightsApiMock, :list_scheduled_flights, fn _airport_code, _departure_date ->
+      expect(MockFlightsApi, :list_scheduled_flights, fn _airport_code, _departure_date ->
         {:ok, []}
       end)
 
@@ -92,56 +94,29 @@ defmodule Flint.FlightsTest do
     end
 
     test "it extracts the relevant flight information" do
-      expect(FlightsApiMock, :list_scheduled_flights, fn "EGFF", ~D[2024-10-12] ->
+      expect(MockFlightsApi, :list_scheduled_flights, fn "EGFF", ~D[2024-10-12] ->
         {:ok,
          [
-           %{
-             "aircraft" => %{"model" => "Airbus A320"},
-             "airline" => %{"iata" => "VY", "icao" => "VLG", "name" => "Vueling"},
-             "codeshareStatus" => "Unknown",
-             "isCargo" => false,
-             "movement" => %{
-               "airport" => %{"iata" => "ALC", "icao" => "LEAL", "name" => "Alicante"},
-               "quality" => ["Basic"],
-               "scheduledTime" => %{
-                 "local" => "2024-02-17 17:00+00:00",
-                 "utc" => "2024-02-17 17:00Z"
-               }
-             },
-             "number" => "VY 1240",
-             "status" => "Unknown"
+           %ApiFlight{
+             airline_icao_code: "VLG",
+             departs_at: ~U[2024-02-17 17:00:00Z],
+             destination_icao_code: "LEAL",
+             flight_number: "VY 1240",
+             origin_icao_code: "EGFF"
            },
-           %{
-             "aircraft" => %{"model" => "Embraer 175"},
-             "airline" => %{"iata" => "KL", "icao" => "KLM", "name" => "KLM"},
-             "codeshareStatus" => "Unknown",
-             "isCargo" => false,
-             "movement" => %{
-               "airport" => %{"iata" => "AMS", "icao" => "EHAM", "name" => "Amsterdam"},
-               "quality" => ["Basic"],
-               "scheduledTime" => %{
-                 "local" => "2024-02-17 17:25+00:00",
-                 "utc" => "2024-02-17 17:25Z"
-               }
-             },
-             "number" => "KL 1066",
-             "status" => "Unknown"
+           %ApiFlight{
+             airline_icao_code: "KLM",
+             departs_at: ~U[2024-02-17 17:25:00Z],
+             destination_icao_code: "EHAM",
+             flight_number: "KL 1066",
+             origin_icao_code: "EGFF"
            },
-           %{
-             "aircraft" => %{"model" => "Embraer 175"},
-             "airline" => %{"iata" => "KL", "icao" => "KLM", "name" => "KLM"},
-             "codeshareStatus" => "Unknown",
-             "isCargo" => false,
-             "movement" => %{
-               "airport" => %{"iata" => "AMS", "icao" => "EHAM", "name" => "Amsterdam"},
-               "quality" => ["Basic"],
-               "scheduledTime" => %{
-                 "local" => "2024-02-17 10:15+00:00",
-                 "utc" => "2024-02-17 10:15Z"
-               }
-             },
-             "number" => "KL 1060",
-             "status" => "Unknown"
+           %ApiFlight{
+             airline_icao_code: "KLM",
+             departs_at: ~U[2024-02-17 10:15:00Z],
+             destination_icao_code: "EHAM",
+             flight_number: "KL 1060",
+             origin_icao_code: "EGFF"
            }
          ]}
       end)
