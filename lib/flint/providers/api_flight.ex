@@ -14,3 +14,13 @@ defmodule Flint.Providers.ApiFlight do
     :flight_number,
     :origin_icao_code
   ]
+
+  @doc """
+  Returns true if the given `api_flight` is a fully-populated `ApiFlight` struct, false otherwise.
+  """
+  @spec valid_api_flight?(any()) :: boolean()
+  def valid_api_flight?(%__MODULE__{} = api_flight),
+    do: api_flight |> Map.values() |> Enum.any?(&is_nil/1) |> Kernel.not()
+
+  def valid_api_flight?(_), do: false
+end
