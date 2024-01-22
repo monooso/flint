@@ -28,7 +28,7 @@ Hooks.DestinationsHandler = {
   mounted() {
     this.handleEvent("destinations", ({destinations}) => {
       console.log("Handled destinations event")
-      destinations.forEach(coords => L.marker(coords).addTo(map))
+      destinations.forEach(({label, lat, lng}) => L.marker({lat, lng}).bindPopup(label).addTo(map))
     })
     console.log("DestinationsHandler mounted")
   }

@@ -31,7 +31,13 @@ defmodule FlintWeb.Live.Search do
 
         destinations =
           Enum.map(destinations_a, fn flight ->
-            %{lat: flight.route.destination.latitude, lng: flight.route.destination.longitude}
+            destination = flight.route.destination
+
+            %{
+              label: "#{destination.name} (#{destination.iata_code})",
+              lat: destination.latitude,
+              lng: destination.longitude
+            }
           end)
 
         {:noreply, push_event(socket, "destinations", %{destinations: destinations})}
