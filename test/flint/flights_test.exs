@@ -1,189 +1,167 @@
 defmodule Flint.FlightsTest do
-  use ExUnit.Case, async: true
-  alias Flint.Flights.Destination
+  use Flint.DataCase, async: true
   import Mox
+
+  alias Flint.Flights.Airport
+  alias Flint.Flights.Airline
+  alias Flint.Flights.Flight
+  alias Flint.Providers.ApiFlight
 
   setup :verify_on_exit!
 
+  defp sort_by_icao_code(items), do: Enum.sort_by(items, & &1.icao_code)
+
   describe "filter_common_destinations/2" do
+    defp generate_flight(origin_code, destination_code) do
+      %Flight{
+        airline: %Flint.Flights.Airline{iata_code: "AAA", name: "Triple-A Airlines"},
+        departs_at: DateTime.utc_now() |> DateTime.add(36000, :minute),
+        flight_number: "AAA 123",
+        route: %Flint.Flights.Route{
+          destination: %Flint.Flights.Airport{icao_code: destination_code},
+          origin: %Flint.Flights.Airport{icao_code: origin_code}
+        }
+      }
+    end
+
     setup do
-      destinations_a = [
-        %Destination{airport: %{iata_code: "AAA", name: "A"}},
-        %Destination{airport: %{iata_code: "BBB", name: "B"}},
-        %Destination{airport: %{iata_code: "CCC", name: "C"}}
+      flights_a = [
+        generate_flight("HOME", "DAVE"),
+        generate_flight("HOME", "BRAD"),
+        generate_flight("HOME", "MARY")
       ]
 
-      destinations_b = [
-        %Destination{airport: %{iata_code: "BBB", name: "B"}},
-        %Destination{airport: %{iata_code: "CCC", name: "C"}},
-        %Destination{airport: %{iata_code: "DDD", name: "D"}}
+      flights_b = [
+        generate_flight("AWAY", "BRAD"),
+        generate_flight("AWAY", "MARY"),
+        generate_flight("AWAY", "JANE")
       ]
 
-      %{destinations_a: destinations_a, destinations_b: destinations_b}
+      %{flights_a: flights_a, flights_b: flights_b}
     end
 
-    test "it returns a tuple containing two lists of destinations", %{
-      destinations_a: destinations_a,
-      destinations_b: destinations_b
+    test "it returns a tuple containing two lists of flights", %{
+      flights_a: alpha,
+      flights_b: bravo
     } do
-      assert {[%Destination{}, %Destination{}], [%Destination{}, %Destination{}]} =
-               Flint.Flights.filter_common_destinations(destinations_a, destinations_b)
+      assert {[%Flight{}, %Flight{}], [%Flight{}, %Flight{}]} =
+               Flint.Flights.filter_by_common_destination(alpha, bravo)
     end
 
-    test "it removes destinations that are not present in both lists", %{
-      destinations_a: destinations_a,
-      destinations_b: destinations_b
+    test "it removes flights with a destination that is not present in both lists", %{
+      flights_a: alpha,
+      flights_b: bravo
     } do
-      extract_iata_codes = fn destinations ->
-        destinations
-        |> Enum.map(fn %{airport: %{iata_code: iata_code}} -> iata_code end)
+      extract_destination_codes = fn flights ->
+        flights
+        |> Enum.map(fn %{route: %{destination: %{icao_code: code}}} -> code end)
         |> Enum.sort()
       end
 
-      {result_a, result_b} =
-        Flint.Flights.filter_common_destinations(destinations_a, destinations_b)
+      {result_a, result_b} = Flint.Flights.filter_by_common_destination(alpha, bravo)
 
-      assert {["BBB", "CCC"], ["BBB", "CCC"]} =
-               {extract_iata_codes.(result_a), extract_iata_codes.(result_b)}
+      assert {["BRAD", "MARY"], ["BRAD", "MARY"]} =
+               {extract_destination_codes.(result_a), extract_destination_codes.(result_b)}
+    end
+  end
+
+  describe "list_airlines_by_icao_codes/1" do
+    test "it returns a list of airlines matching the given ICAO codes" do
+      assert [
+               %Airline{icao_code: "KLM"},
+               %Airline{icao_code: "VLG"}
+             ] = Flint.Flights.list_airlines_by_icao_codes(["KLM", "VLG"]) |> sort_by_icao_code()
+    end
+  end
+
+  describe "list_airports_by_icao_codes/1" do
+    test "it returns a list of airports matching the given ICAO codes" do
+      assert [
+               %Airport{icao_code: "EGFF"},
+               %Airport{icao_code: "EHAM"}
+             ] =
+               Flint.Flights.list_airports_by_icao_codes(["EGFF", "EHAM"]) |> sort_by_icao_code()
     end
   end
 
   describe "list_scheduled_flights/2" do
     test "it returns an {:ok, list()} tuple on success" do
-      expect(FlightsApiMock, :list_scheduled_flights, fn _airport_code, _departure_date ->
+      expect(MockFlightsApi, :list_scheduled_flights, fn _airport_code, _departure_date ->
         {:ok, []}
       end)
 
-      assert {:ok, []} = Flint.Flights.list_scheduled_flights("CWL", ~D[2024-10-12])
+      assert {:ok, []} = Flint.Flights.list_scheduled_flights("EGFF", ~D[2024-10-12])
     end
 
-    test "it extracts the airport and departures information for each flight" do
-      expect(FlightsApiMock, :list_scheduled_flights, fn _airport_code, _departure_date ->
+    test "it extracts the relevant flight information" do
+      expect(MockFlightsApi, :list_scheduled_flights, fn "EGFF", ~D[2024-10-12] ->
         {:ok,
          [
-           %{
-             "aircraft" => %{"model" => "Airbus A320"},
-             "airline" => %{"iata" => "VY", "icao" => "VLG", "name" => "Vueling"},
-             "codeshareStatus" => "Unknown",
-             "isCargo" => false,
-             "movement" => %{
-               "airport" => %{"iata" => "ALC", "icao" => "LEAL", "name" => "Alicante"},
-               "quality" => ["Basic"],
-               "scheduledTime" => %{
-                 "local" => "2024-02-17 17:00+00:00",
-                 "utc" => "2024-02-17 17:00Z"
-               }
-             },
-             "number" => "VY 1240",
-             "status" => "Unknown"
+           %ApiFlight{
+             airline_icao_code: "VLG",
+             departs_at: ~U[2024-02-17 17:00:00Z],
+             destination_icao_code: "LEAL",
+             flight_number: "VY 1240",
+             origin_icao_code: "EGFF"
            },
-           %{
-             "aircraft" => %{"model" => "Embraer 175"},
-             "airline" => %{"iata" => "KL", "icao" => "KLM", "name" => "KLM"},
-             "codeshareStatus" => "Unknown",
-             "isCargo" => false,
-             "movement" => %{
-               "airport" => %{"iata" => "AMS", "icao" => "EHAM", "name" => "Amsterdam"},
-               "quality" => ["Basic"],
-               "scheduledTime" => %{
-                 "local" => "2024-02-17 17:25+00:00",
-                 "utc" => "2024-02-17 17:25Z"
-               }
-             },
-             "number" => "KL 1066",
-             "status" => "Unknown"
+           %ApiFlight{
+             airline_icao_code: "KLM",
+             departs_at: ~U[2024-02-17 17:25:00Z],
+             destination_icao_code: "EHAM",
+             flight_number: "KL 1066",
+             origin_icao_code: "EGFF"
            },
-           %{
-             "aircraft" => %{"model" => "ATR 72"},
-             "airline" => %{"iata" => "EI", "icao" => "EIN", "name" => "Aer Lingus"},
-             "codeshareStatus" => "Unknown",
-             "isCargo" => false,
-             "movement" => %{
-               "airport" => %{"iata" => "BHD", "icao" => "EGAC", "name" => "Belfast"},
-               "quality" => ["Basic"],
-               "scheduledTime" => %{
-                 "local" => "2024-02-17 12:10+00:00",
-                 "utc" => "2024-02-17 12:10Z"
-               }
-             },
-             "number" => "EI 3621",
-             "status" => "Unknown"
-           },
-           %{
-             "aircraft" => %{"model" => "Embraer 175"},
-             "airline" => %{"iata" => "KL", "icao" => "KLM", "name" => "KLM"},
-             "codeshareStatus" => "Unknown",
-             "isCargo" => false,
-             "movement" => %{
-               "airport" => %{"iata" => "AMS", "icao" => "EHAM", "name" => "Amsterdam"},
-               "quality" => ["Basic"],
-               "scheduledTime" => %{
-                 "local" => "2024-02-17 10:15+00:00",
-                 "utc" => "2024-02-17 10:15Z"
-               }
-             },
-             "number" => "KL 1060",
-             "status" => "Unknown"
-           },
-           %{
-             "aircraft" => %{"model" => "Airbus A320"},
-             "airline" => %{"iata" => "VY", "icao" => "VLG", "name" => "Vueling"},
-             "codeshareStatus" => "Unknown",
-             "isCargo" => false,
-             "movement" => %{
-               "airport" => %{"iata" => "AGP", "icao" => "LEMG", "name" => "Málaga"},
-               "quality" => ["Basic"],
-               "scheduledTime" => %{
-                 "local" => "2024-02-17 15:10+00:00",
-                 "utc" => "2024-02-17 15:10Z"
-               }
-             },
-             "number" => "VY 1261",
-             "status" => "Unknown"
-           },
-           %{
-             "aircraft" => %{"model" => "ATR 72"},
-             "airline" => %{"iata" => "T3", "icao" => "EZE", "name" => "Eastern Airways"},
-             "codeshareStatus" => "Unknown",
-             "isCargo" => false,
-             "movement" => %{
-               "airport" => %{"iata" => "ORY", "icao" => "LFPO", "name" => "Paris"},
-               "quality" => ["Basic"],
-               "scheduledTime" => %{
-                 "local" => "2024-02-17 15:40+00:00",
-                 "utc" => "2024-02-17 15:40Z"
-               }
-             },
-             "number" => "T3 247",
-             "status" => "Unknown"
+           %ApiFlight{
+             airline_icao_code: "KLM",
+             departs_at: ~U[2024-02-17 10:15:00Z],
+             destination_icao_code: "EHAM",
+             flight_number: "KL 1060",
+             origin_icao_code: "EGFF"
            }
          ]}
       end)
 
-      expected_result = [
-        %Destination{
-          airport: %{iata_code: "ALC", name: "Alicante"},
-          departures: [~U[2024-02-17 17:00:00Z]]
+      airlines =
+        ["KLM", "VLG"]
+        |> Flint.Flights.list_airlines_by_icao_codes()
+        |> Enum.reduce(%{}, &Map.put(&2, &1.icao_code, &1))
+
+      airports =
+        ["LEAL", "EHAM", "EGFF"]
+        |> Flint.Flights.list_airports_by_icao_codes()
+        |> Enum.reduce(%{}, &Map.put(&2, &1.icao_code, &1))
+
+      expected = [
+        %Flight{
+          airline: Map.get(airlines, "VLG"),
+          departs_at: ~U[2024-02-17 17:00:00Z],
+          flight_number: "VY 1240",
+          route: %Flint.Flights.Route{
+            destination: Map.get(airports, "LEAL"),
+            origin: Map.get(airports, "EGFF")
+          }
         },
-        %Destination{
-          airport: %{iata_code: "AMS", name: "Amsterdam"},
-          departures: [~U[2024-02-17 10:15:00Z], ~U[2024-02-17 17:25:00Z]]
+        %Flight{
+          airline: Map.get(airlines, "KLM"),
+          departs_at: ~U[2024-02-17 17:25:00Z],
+          flight_number: "KL 1066",
+          route: %Flint.Flights.Route{
+            destination: Map.get(airports, "EHAM"),
+            origin: Map.get(airports, "EGFF")
+          }
         },
-        %Destination{
-          airport: %{iata_code: "BHD", name: "Belfast"},
-          departures: [~U[2024-02-17 12:10:00Z]]
-        },
-        %Destination{
-          airport: %{iata_code: "AGP", name: "Málaga"},
-          departures: [~U[2024-02-17 15:10:00Z]]
-        },
-        %Destination{
-          airport: %{iata_code: "ORY", name: "Paris"},
-          departures: [~U[2024-02-17 15:40:00Z]]
+        %Flight{
+          airline: Map.get(airlines, "KLM"),
+          departs_at: ~U[2024-02-17 10:15:00Z],
+          flight_number: "KL 1060",
+          route: %Flint.Flights.Route{
+            destination: Map.get(airports, "EHAM"),
+            origin: Map.get(airports, "EGFF")
+          }
         }
       ]
 
-      assert {:ok, ^expected_result} = Flint.Flights.list_scheduled_flights("CWL", ~D[2024-10-12])
+      assert {:ok, ^expected} = Flint.Flights.list_scheduled_flights("EGFF", ~D[2024-10-12])
     end
   end
 end

@@ -24,8 +24,8 @@ defmodule Flint.Flights.SearchForm do
     |> cast(params, [:first_origin_code, :second_origin_code, :departure_date])
     |> validate_required([:first_origin_code, :second_origin_code, :departure_date])
     |> validate_departure_date()
-    |> validate_iata_code(:first_origin_code)
-    |> validate_iata_code(:second_origin_code)
+    |> validate_icao_code(:first_origin_code)
+    |> validate_icao_code(:second_origin_code)
   end
 
   defp validate_departure_date(changeset) do
@@ -38,6 +38,6 @@ defmodule Flint.Flights.SearchForm do
     end
   end
 
-  defp validate_iata_code(changeset, field),
-    do: validate_format(changeset, field, ~r/^[A-Za-z]{3}$/, message: "must be a valid IATA code")
+  defp validate_icao_code(changeset, field),
+    do: validate_format(changeset, field, ~r/^[A-Za-z]{4}$/, message: "must be a valid ICAO code")
 end

@@ -11,8 +11,8 @@ defmodule Flint.Flights.SearchFormTest do
       %{
         valid_params: %{
           "departure_date" => future_date,
-          "first_origin_code" => "BRS",
-          "second_origin_code" => "CWL"
+          "first_origin_code" => "AAAA",
+          "second_origin_code" => "BBBB"
         }
       }
     end
@@ -26,63 +26,63 @@ defmodule Flint.Flights.SearchFormTest do
     end
 
     test "a valid first_origin_code is required", %{valid_params: valid_params} do
-      # It does not care about case.
-      params = %{valid_params | "first_origin_code" => "BrS"}
+      # It does not care about case
+      params = %{valid_params | "first_origin_code" => "BbBb"}
       assert %{valid?: true} = SearchForm.changeset(%SearchForm{}, params)
 
-      # Required.
+      # Missing
       params = Map.delete(valid_params, "first_origin_code")
       changeset = SearchForm.changeset(%SearchForm{}, params)
       assert %{first_origin_code: ["can't be blank"]} = errors_on(changeset)
 
-      # Must be a string.
+      # Not a string
       params = %{valid_params | "first_origin_code" => 123}
       changeset = SearchForm.changeset(%SearchForm{}, params)
       assert %{first_origin_code: ["is invalid"]} = errors_on(changeset)
 
-      # Must be three characters long.
-      params = %{valid_params | "first_origin_code" => "BB"}
+      # Incorrect length
+      params = %{valid_params | "first_origin_code" => "BBB"}
       changeset = SearchForm.changeset(%SearchForm{}, params)
-      assert %{first_origin_code: ["must be a valid IATA code"]} = errors_on(changeset)
+      assert %{first_origin_code: ["must be a valid ICAO code"]} = errors_on(changeset)
 
-      params = %{valid_params | "first_origin_code" => "BBBB"}
+      params = %{valid_params | "first_origin_code" => "BBBBB"}
       changeset = SearchForm.changeset(%SearchForm{}, params)
-      assert %{first_origin_code: ["must be a valid IATA code"]} = errors_on(changeset)
+      assert %{first_origin_code: ["must be a valid ICAO code"]} = errors_on(changeset)
 
-      # Must only contain the letters A-Z or a-z.
-      params = %{valid_params | "first_origin_code" => "B2B"}
+      # Invalid characters
+      params = %{valid_params | "first_origin_code" => "B2BB"}
       changeset = SearchForm.changeset(%SearchForm{}, params)
-      assert %{first_origin_code: ["must be a valid IATA code"]} = errors_on(changeset)
+      assert %{first_origin_code: ["must be a valid ICAO code"]} = errors_on(changeset)
     end
 
     test "a valid second_origin_code is required", %{valid_params: valid_params} do
-      # It does not care about case.
-      params = %{valid_params | "second_origin_code" => "BrS"}
+      # It does not care about case
+      params = %{valid_params | "second_origin_code" => "BbBb"}
       assert %{valid?: true} = SearchForm.changeset(%SearchForm{}, params)
 
-      # Required.
+      # Missing
       params = Map.delete(valid_params, "second_origin_code")
       changeset = SearchForm.changeset(%SearchForm{}, params)
       assert %{second_origin_code: ["can't be blank"]} = errors_on(changeset)
 
-      # Must be a string.
+      # Not a string
       params = %{valid_params | "second_origin_code" => 123}
       changeset = SearchForm.changeset(%SearchForm{}, params)
       assert %{second_origin_code: ["is invalid"]} = errors_on(changeset)
 
-      # Must be three characters long.
-      params = %{valid_params | "second_origin_code" => "BB"}
+      # Incorrect length
+      params = %{valid_params | "second_origin_code" => "BBB"}
       changeset = SearchForm.changeset(%SearchForm{}, params)
-      assert %{second_origin_code: ["must be a valid IATA code"]} = errors_on(changeset)
+      assert %{second_origin_code: ["must be a valid ICAO code"]} = errors_on(changeset)
 
-      params = %{valid_params | "second_origin_code" => "BBBB"}
+      params = %{valid_params | "second_origin_code" => "BBBBB"}
       changeset = SearchForm.changeset(%SearchForm{}, params)
-      assert %{second_origin_code: ["must be a valid IATA code"]} = errors_on(changeset)
+      assert %{second_origin_code: ["must be a valid ICAO code"]} = errors_on(changeset)
 
-      # Must only contain the letters A-Z or a-z.
-      params = %{valid_params | "second_origin_code" => "B2B"}
+      # Invalid characters
+      params = %{valid_params | "second_origin_code" => "B2BB"}
       changeset = SearchForm.changeset(%SearchForm{}, params)
-      assert %{second_origin_code: ["must be a valid IATA code"]} = errors_on(changeset)
+      assert %{second_origin_code: ["must be a valid ICAO code"]} = errors_on(changeset)
     end
 
     test "a valid departure_date is required", %{valid_params: valid_params} do

@@ -53,6 +53,7 @@ defmodule Flint.MixProject do
       {:plug_cowboy, "~> 2.5"},
       {:dotenvy, "~> 0.8.0"},
       {:mox, "~> 1.1", only: :test},
+      {:nimble_csv, "~> 1.2.0"},
       {:req, "~> 0.4.8"}
     ]
   end

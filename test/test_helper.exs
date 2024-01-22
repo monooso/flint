@@ -1,5 +1,5 @@
-Mox.defmock(FlightsApiMock, for: Flint.Flights.ApiBehaviour)
-Application.put_env(:flint, :flights, FlightsApiMock)
+Mox.defmock(MockFlightsApi, for: Flint.Providers.FlightsApiBehaviour)
+Application.put_env(:flint, :flights, MockFlightsApi)
 
 ExUnit.start()
 Ecto.Adapters.SQL.Sandbox.mode(Flint.Repo, :manual)
