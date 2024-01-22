@@ -27,10 +27,11 @@ let Hooks = {}
 Hooks.DestinationsHandler = {
   mounted() {
     this.handleEvent("destinations", ({destinations}) => {
-      console.log("Handled destinations event")
       destinations.forEach(({label, lat, lng}) => L.marker({lat, lng}).bindPopup(label).addTo(map))
+
+      const bounds = destinations.map(({lat, lng}) => [lat, lng])
+      map.flyToBounds(bounds)
     })
-    console.log("DestinationsHandler mounted")
   }
 }
 

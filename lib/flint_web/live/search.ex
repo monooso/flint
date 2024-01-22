@@ -24,13 +24,13 @@ defmodule FlintWeb.Live.Search do
 
     case result do
       {:ok, search_form} ->
-        {destinations_a, _destinations_b} =
+        {_destinations_a, destinations_b} =
           search_form
           |> find_flights()
           |> find_common_destinations()
 
         destinations =
-          Enum.map(destinations_a, fn flight ->
+          Enum.map(destinations_b, fn flight ->
             destination = flight.route.destination
 
             %{
